@@ -1,126 +1,130 @@
-#!/bin/bash
+\#!/bin/bash
 
-# Blood Test Analysis System - Setup Script
+# Blood Test Analyzer - Environment Setup Script
 
-echo "🩸 Blood Test Analysis System Setup"
-echo "==================================="
+echo "🔬 Initializing Blood Test Analyzer Setup"
+echo "========================================="
 
-# Check if running on Linux
-if [[ "$OSTYPE" != "linux-gnu"* ]]; then
-    echo "This script is designed for Linux systems."
-    echo "Please install dependencies manually on other systems."
+# Ensure Linux system
+
+if \[\[ "\$OSTYPE" != "linux-gnu"\* ]]; then
+echo "⚠️ This script is tailored for Linux environments."
+echo "    Manual setup may be required on your OS."
 fi
 
-# Check if Python 3.8+ is available
-python_version=$(python3 --version 2>&1 | grep -oE '[0-9]+\.[0-9]+')
-if [[ $(echo "$python_version >= 3.8" | bc -l) != 1 ]]; then
-    echo "Error: Python 3.8+ is required. Current version: $python_version"
-    exit 1
-fi
+# Verify Python version
 
-echo "Python version: $python_version ✓"
-
-# Install system dependencies
-echo ""
-echo "Installing system dependencies..."
-if command -v apt-get &> /dev/null; then
-    sudo apt-get update
-    sudo apt-get install -y redis-server python3-venv python3-pip build-essential
-elif command -v yum &> /dev/null; then
-    sudo yum install -y redis python3-venv python3-pip gcc gcc-c++
-elif command -v pacman &> /dev/null; then
-    sudo pacman -S redis python-virtualenv python-pip base-devel
+python\_version=\$(python3 --version 2>&1 | grep -oE '\[0-9]+.\[0-9]+')
+if \[\[ \$(echo "\$python\_version >= 3.8" | bc -l) != 1 ]]; then
+echo "❌ Python 3.8+ is required. Detected: \$python\_version"
+exit 1
 else
-    echo "Unknown package manager. Please install Redis and build tools manually."
+echo "✅ Python version \$python\_version is supported."
 fi
 
-# Create virtual environment if it doesn't exist
-if [ ! -d "venv" ]; then
-    echo ""
-    echo "Creating virtual environment..."
-    python3 -m venv venv
+# Install base system dependencies
+
+echo "\n📦 Installing system packages..."
+if command -v apt-get &> /dev/null; then
+sudo apt-get update
+sudo apt-get install -y redis-server python3-venv python3-pip build-essential
+elif command -v yum &> /dev/null; then
+sudo yum install -y redis python3-venv python3-pip gcc gcc-c++
+elif command -v pacman &> /dev/null; then
+sudo pacman -S --noconfirm redis python-virtualenv python-pip base-devel
+else
+echo "⚠️ Unknown package manager. Please install Redis, pip, and venv manually."
 fi
 
-# Activate virtual environment
-echo "Activating virtual environment..."
+# Create virtual environment if missing
+
+if \[ ! -d "venv" ]; then
+echo "\n🧪 Setting up virtual environment..."
+python3 -m venv venv
+fi
+
+# Activate venv
+
+echo "🔄 Activating virtual environment..."
 source venv/bin/activate
 
 # Upgrade pip
-echo "Upgrading pip..."
+
+echo "⬆️ Upgrading pip..."
 pip install --upgrade pip
 
-# Install Python dependencies
-echo ""
-echo "Installing Python dependencies..."
+# Install project dependencies
+
+echo "\n📚 Installing Python requirements..."
 pip install -r requirements.txt
 
-# Create necessary directories
-echo ""
-echo "Creating directories..."
+# Setup necessary folders
+
+echo "\n📁 Creating directories: data/, uploads/"
 mkdir -p data uploads
 
-# Check if .env file exists
-if [ ! -f ".env" ]; then
-    echo ""
-    echo "Creating .env file..."
-    cat > .env << EOL
+# Generate default .env if absent
+
+if \[ ! -f ".env" ]; then
+echo "\n⚙️ Creating .env configuration file..."
+cat > .env << EOL
+
 # OpenAI API Configuration
-OPENAI_API_KEY=your_openai_api_key_here
+
+OPENAI\_API\_KEY=your\_openai\_api\_key\_here
 
 # Database Configuration
-DATABASE_URL=sqlite:///./blood_test_analysis.db
 
-# Redis Configuration  
-REDIS_URL=redis://localhost:6379/0
+DATABASE\_URL=sqlite:///./blood\_test\_analysis.db
+
+# Redis Configuration
+
+REDIS\_URL=redis\://localhost:6379/0
 
 # Application Settings
+
 DEBUG=True
-LOG_LEVEL=INFO
+LOG\_LEVEL=INFO
 EOL
-    echo "⚠️  Please edit .env file and add your OpenAI API key!"
+echo "⚠️ Please update your OpenAI API key in .env!"
 else
-    echo ".env file already exists ✓"
+echo "✅ .env file found. Skipping creation."
 fi
 
-# Start Redis if not running
-echo ""
-echo "Checking Redis..."
+# Redis check and start
+
+echo "\n🧠 Checking Redis status..."
 if ! redis-cli ping > /dev/null 2>&1; then
-    echo "Starting Redis..."
-    sudo systemctl start redis
-    sleep 2
-    
-    if ! redis-cli ping > /dev/null 2>&1; then
-        echo "Failed to start Redis via systemctl. Trying manual start..."
-        nohup redis-server > redis.log 2>&1 &
-        sleep 2
-    fi
+echo "🛠 Starting Redis service..."
+sudo systemctl start redis
+sleep 2
+if ! redis-cli ping > /dev/null 2>&1; then
+echo "⚠️ systemctl failed. Attempting manual Redis launch..."
+nohup redis-server > redis.log 2>&1 &
+sleep 2
+fi
 fi
 
 if redis-cli ping > /dev/null 2>&1; then
-    echo "Redis is running ✓"
+echo "✅ Redis is active."
 else
-    echo "⚠️  Redis is not running. Please start it manually:"
-    echo "   sudo systemctl start redis"
-    echo "   or"
-    echo "   redis-server"
+echo "❌ Redis is not running. Try manually with:"
+echo "   sudo systemctl start redis"
+echo "   OR run: redis-server"
 fi
 
-# Make scripts executable
-chmod +x start_workers.sh
-chmod +x setup_system.sh
+# Ensure scripts are executable
 
-echo ""
-echo "🎉 Setup complete!"
-echo ""
+chmod +x start\_workers.sh setup\_system.sh
+
+# Final instructions
+
+echo "\n🎯 Setup finished successfully!"
 echo "Next steps:"
-echo "1. Edit .env file and add your OpenAI API key"
-echo "2. Start the workers: ./start_workers.sh"
-echo "3. In another terminal, start the API: python main.py"
-echo "4. Visit http://localhost:8000 to see the API"
-echo "5. Visit http://localhost:5555 to see Flower monitoring"
-echo ""
-echo "For Docker deployment:"
-echo "   docker-compose up -d"
-echo ""
-echo "Happy analyzing! 🔬" 
+echo "1️⃣  Edit .env and insert your OpenAI key"
+echo "2️⃣  Start workers using: ./start\_workers.sh"
+echo "3️⃣  In another terminal, launch API: python main.py"
+echo "4️⃣  Navigate to: [http://localhost:8000](http://localhost:8000)"
+echo "5️⃣  Flower dashboard: [http://localhost:5555](http://localhost:5555)"
+echo "\n🐳 Docker setup: docker-compose up -d"
+echo "\n🚀 You're ready to analyze blood test reports!"
